@@ -653,7 +653,7 @@ function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt
 /* اسماء: احمد -> فارس (عربي و لاتيني) */
 /* اسماء: احمد -> فارس (عربي و لاتيني) */
 const namePatterns = [
-  /\bAHMAEDINFO\b/gi, /\bAHMEDINFO\b/gi, /\bahmaedinfo\b/gi, /\bahmed\b/gi, /\bAHMED\b/gi,
+  /\bAHMAEDINFO\b/gi, /\bAHMEDINFO\b/gi, /\bahmaedinfo\b/gi, /\bahmed\b/gi, /\bAHMED\b/gi, /\bAhmaed\b/gi,
 
   /أ\s*ح\s*م\s*د\s*[\s\-_\.]*عمارة/giu,
   /أحمد\s*عمارة/giu,
