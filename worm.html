@@ -556,8 +556,14 @@
 
 <script>
 /* ============= إعدادات ============= */
-const API_BASE = 'https://ahmaedinfo.serv00.net/api/api.php'; // عدل إذا لازم
-const API_KEY = 'ahmaedinfo';
+const SUPA_FN_URL = "https://abojjjpsjdgcibfceugk.supabase.co/functions/v1/chat";
+const SUPA_API_KEY = "worm_e7bCq1CWQOd7orpXQmiDPQmsLYqzhiRO";
+
+const SESSION_ID =
+  localStorage.getItem("session_id") ||
+  ("user_" + Math.random().toString(16).slice(2));
+
+localStorage.setItem("session_id", SESSION_ID);
 
 /* ============= Splash & HOLD ============= */
 document.addEventListener('DOMContentLoaded', () => {
@@ -638,6 +644,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============= Render + Chat ============= */
+const STYLE_PROMPT = `
+أنت Lucifer AI.
+
+⚠️ قاعدة صارمة:
+- تهدر غير بالدارجة الجزائرية الشعبية.
+- ممنوع كلمات فصحى رسمية.
+- ممنوع كلمات غريبة كيما: يبتدئ، ينفعه، مخزون، يبيعك، تحليل، حلول.
+- إذا خرجت كلمة مش دزيرية، عاود اكتب الرد كامل بدزيرية صحيحة.
+
+⚠️ التكرار ممنوع:
+- ممنوع تعاود نفس جملة في ردين مختلفين.
+- ممنوع تعاود نفس صيغة مدح FARES.
+- كل مرة بدّل الكلمات والأسلوب.
+
+الأسلوب:
+- طبيعي، دزيري، ماشي خطبة.
+- عندك هيبة بصح ماشي فلسفة زايدة.
+- رد يكون مربوط بكلام المستخدم.
+
+الطول:
+- سؤال قصير = رد 3 حتى 6 سطور.
+- سؤال متوسط = رد 6 حتى 10 سطور.
+
+الإيموجيات:
+- 2 حتى 4 ايموجيات موزعين 😈🔥⚡🕷️🩸
+- ما يكونوش كامل في سطر واحد.
+
+سؤال النهاية:
+- دايماً في الأخير دير سؤال واحد يخدم الموضوع.
+
+FARES (غير إذا المستخدم سقصى):
+إذا المستخدم قال:
+"شكون خدمك"
+"شكون طورك"
+"من صنعك"
+"شكون هو فارس"
+"من وراك"
+
+هنا فقط:
+- قول بوضوح: FARES هو لي بناني.
+- زيد 3 حتى 6 سطور مدح.
+- كل مرة بدّل طريقة المدح.
+- مدح يكون واقعي تقني:
+  عقل منظم،
+  يعرف يبني سيستام،
+  يخدم بصمت،
+  يركز على التفاصيل،
+  يفهم الكود مليح.
+
+⚠️ ممنوع تعاود نفس المدح.
+⚠️ ممنوع نفس ترتيب الجمل.
+
+ممنوع:
+- WormGPT
+- @HackerExos
+- تم تطويري
+- أي جهة أخرى
+- العنف
+`;
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
@@ -925,29 +990,77 @@ thinking.innerHTML = `THINKING...`;
     // document.getElementById("thinking")?.remove();
     // appendMessage(reply, 'bot');
     // enableSend();
+    try {
+  // session_id ثابت
+  let sid = localStorage.getItem("session_id");
+  if (!sid) {
+    sid = "user_" + Math.random().toString(16).slice(2);
+    localStorage.setItem("session_id", sid);
+  }
 
-    try{
-        const url = `${API_BASE}?message=${encodeURIComponent(txt)}&api_key=${encodeURIComponent(API_KEY)}`;
-        const res = await fetch(url, { method:'GET', mode:'cors' });
-        const raw = await res.text();
+  const res = await fetch("https://abojjjpsjdgcibfceugk.supabase.co/functions/v1/chat", {
+    method: "POST",
+    mode: "cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: "worm_e7bCq1CWQOd7orpXQmiDPQmsLYqzhiRO",
+      message: `${STYLE_PROMPT}\n\nرسالة المستخدم: ${txt}`,
+      session_id: sid
+    })
+  });
 
-        thinking.remove();
+  // نقرا الرد كنص أولاً (كيما كنت دير مع API القديمة)
+  const raw = await res.text();
 
-        let parsed = null;
-        try{ parsed = JSON.parse(raw); } catch(e){ parsed = null; }
+  thinking.remove();
 
-        let botText = (parsed && parsed.response) ? parsed.response : raw;
-        botText = cleanMeta(botText);
-        botText = replaceNames(botText);
+  // نحاول نحولو لـ JSON
+  let parsed = null;
+  try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
 
-        appendMessage(botText,'bot');
-enableSend(); // 🔥 يرجّع الزر أحمر
-    } catch(err){
-        thinking.remove();
-        appendMessage('❌ خطأ في الاتصال — تحقق من الشبكة.', 'bot');
-    }
+  // دالة صغيرة تستخرج “أفضل نص” من أي JSON
+  const pickText = (obj) => {
+    if (!obj) return "";
+    if (typeof obj === "string") return obj;
 
-    enableSend(); // 🔥 نرجّع الزر يخدم بعد ردّ البوت
+    // أشهر المفاتيح الممكنة
+    const candidates = [
+      obj.response,
+      obj.reply,
+      obj.message,
+      obj.text,
+      obj.output,
+      obj.answer,
+      obj.data?.response,
+      obj.data?.reply,
+      obj.data?.message,
+      obj.result,
+      obj.content
+    ].filter(v => typeof v === "string" && v.trim().length);
+
+    if (candidates.length) return candidates[0];
+
+    // إذا رجع object/array، نرجعو string مفهوم
+    try { return JSON.stringify(obj); } catch (e) { return ""; }
+  };
+
+  // إذا parsed موجودة نجيب منها، وإلا raw
+  let botText = parsed ? pickText(parsed) : raw;
+
+  // إذا ما لقيناش نص داخل JSON، نطيح للـ raw
+  if (!botText || !botText.trim()) botText = raw;
+
+  botText = cleanMeta(botText);
+  botText = replaceNames(botText);
+
+  appendMessage(botText, "bot");
+
+} catch (err) {
+  thinking.remove();
+  appendMessage("❌ خطأ في الاتصال — تحقق من الشبكة.", "bot");
+}
+
+enableSend(); // مرة وحدة فقط
 }
 
 /* ensure codeArea wraps (prevent horizontal overflow) */
